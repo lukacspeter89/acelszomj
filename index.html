@@ -96,6 +96,39 @@ h4{margin:0 0 7px;font-size:8px;letter-spacing:.24em;color:var(--mute);font-weig
  border:1px solid var(--cyan);color:#052024;font-weight:700;cursor:pointer;margin-top:16px}
 #ov button.pri:hover{background:#5df0e2;box-shadow:0 0 24px rgba(53,224,208,.45)}
 @media(max-width:660px){.shead,.prow{grid-template-columns:14px 1fr}.shead span:nth-child(n+3),.prow .psel{grid-column:1/-1}}
+/* ── enciklopédia ── */
+#ov .b.wide{max-width:1000px}
+.cx{display:grid;grid-template-columns:150px 1fr;gap:16px;margin-top:14px}
+.cxnav{display:flex;flex-direction:column;gap:3px}
+.cxnav button{font:inherit;font-size:10px;letter-spacing:.1em;text-align:left;padding:8px 10px;
+ background:#0b1523;border:1px solid var(--steel);color:var(--bone);cursor:pointer;transition:.12s}
+.cxnav button:hover{border-color:var(--cyan);background:#123048}
+.cxnav button.on{background:linear-gradient(90deg,#12484a,#0d2534);border-color:var(--cyan);color:var(--cyan)}
+.cxbody{max-height:60vh;overflow-y:auto;padding-right:8px}
+.cxbody::-webkit-scrollbar{width:6px}.cxbody::-webkit-scrollbar-thumb{background:var(--steel)}
+.cxcard{display:grid;grid-template-columns:74px 1fr;gap:14px;padding:13px 0;border-bottom:1px solid var(--line)}
+.cxpic{width:74px;height:74px;background:radial-gradient(circle at 50% 45%,#132234,#080e18);
+ border:1px solid var(--steel);display:flex;align-items:center;justify-content:center}
+.cxh{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:4px}
+.cxh b{font-size:14px;color:var(--cyan);letter-spacing:.03em}
+.cxtag{font-size:8px;letter-spacing:.16em;text-transform:uppercase;border:1px solid var(--steel);
+ padding:1px 6px;color:var(--mute)}
+.cxtag.t{border-color:var(--amber);color:var(--amber)}
+.cxtag.l{border-color:var(--mag);color:var(--mag)}
+.cxd{font-size:10.5px;line-height:1.65;color:#8fa8c0;margin:0 0 7px}
+.cxs{display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:0 14px}
+.cxs div{display:flex;justify-content:space-between;font-size:10px;padding:2px 0;
+ border-bottom:1px dotted rgba(39,64,92,.5)}
+.cxs span:first-child{color:var(--mute)}
+.cxs span:last-child{color:var(--bone)}
+.cxs div.hi span:last-child{color:var(--cyan)}
+table.mx{border-collapse:collapse;font-size:10px;margin-top:8px;width:100%}
+table.mx th,table.mx td{border:1px solid var(--line);padding:5px 7px;text-align:center}
+table.mx th{color:var(--mute);font-weight:400;letter-spacing:.1em;font-size:8.5px;text-transform:uppercase}
+table.mx td.g{color:#5cff9d}table.mx td.b{color:#ff3b5c}table.mx td.n{color:var(--mute)}
+.cxsec{font-size:9px;letter-spacing:.22em;color:var(--mute);text-transform:uppercase;
+ border-bottom:1px solid var(--line);padding-bottom:5px;margin:16px 0 9px}
+.cxsec:first-child{margin-top:0}
 </style>
 </head>
 <body>
@@ -1557,6 +1590,10 @@ addEventListener('keydown',e=>{
  keys[e.key.toLowerCase()]=1;
  if(e.code==='Space'){e.preventDefault();pause()}
  if(e.key==='Escape'){placing=null;sel=[];paneSig='';render()}
+ if(e.key==='F1'){e.preventDefault();
+  if(started&&!S.over&&document.getElementById('ov').style.display==='none'){
+   paused=true;document.getElementById('bPause').textContent='FOLYTAT';
+   drawCodex('units',true);document.getElementById('ov').style.display='flex'}}
  const k=e.key.toLowerCase();
  if(k==='q'){sel=S.u.filter(u=>u.team===0&&U[u.type].dmg>0);paneSig='';render()}
  if(k==='e'){sel=S.u.filter(u=>u.team===0&&u.type==='dozer');paneSig='';render()}});
@@ -1593,6 +1630,211 @@ function loop(t){
  paint();
  uiT+=dt;if(uiT>.2){uiT=0;render()}}
 
+
+/* ═══════════ ENCIKLOPÉDIA ═══════════ */
+const CLSN={sup:'ellátó',lgt:'könnyű',tnk:'páncélos',art:'tüzérség',td:'romboló'};
+const CXCAT=[['units','Harcegységek'],['supply','Ellátó egységek'],['bld','Létesítmények'],
+             ['res','Nyersanyagok'],['tech','Technológia'],['combat','Harcrendszer'],['ctrl','Irányítás']];
+let cxCat='units', cxFromGame=false;
+function cxIcon(type,isB,px){
+ px=px||64;
+ const src=isB?SP[0]['B_'+type]:SP[0][type].hull;
+ const c=mk(px,px),g=c.getContext('2d');
+ const sc=Math.min((px-6)/src.width,(px-6)/src.height);
+ g.translate(px/2,px/2);g.scale(sc,sc);if(!isB)g.rotate(-Math.PI/2);
+ g.drawImage(src,-src.width/2,-src.height/2);
+ return `<img src="${c.toDataURL()}" width="${px}" height="${px}" alt="">`;
+}
+function st(l,v,hi){return `<div class="${hi?'hi':''}"><span>${l}</span><span>${v}</span></div>`}
+function unitCard(k){
+ const d=U[k], dps=d.dmg&&d.rof?(d.dmg/d.rof).toFixed(1):'—';
+ const auto=Math.round(d.cap/d.burn);
+ const prod=d.from.map(f=>B[f].n).join(', ');
+ const roman='I II III IV'.split(' ');
+ let extra='';
+ if(k==='leviathan')extra=st('Fő fegyver','gravitonvető')+st('Töltési idő',d.chargeT+' mp',1)
+   +st('Tornyok','4 × '+d.subDmg,1)+st('Torony hatótáv',d.subRng)+st('Torony tűzgyorsaság',d.subRof+' mp');
+ return `<div class="cxcard">
+  <div class="cxpic">${cxIcon(k,0)}</div>
+  <div>
+   <div class="cxh"><b>${d.n}</b>
+    <span class="cxtag">${CLSN[d.cls]}</span>
+    ${d.tech?`<span class="cxtag t">${roman[d.tech]}. szint</span>`:''}
+    ${d.limit?`<span class="cxtag l">max ${d.limit} db</span>`:''}</div>
+   <p class="cxd">${d.desc}</p>
+   <div class="cxs">
+    ${st('Ár',d.ore+' titanit',1)}
+    ${st('Gyártási idő',d.bt+' mp')}
+    ${st('Páncél',d.hp)}
+    ${st('Sebesség',d.sp)}
+    ${d.dmg?st('Tűzerő',d.dmg,1):st('Fegyverzet','nincs')}
+    ${d.dmg?st('Tűzgyorsaság',d.rof+' mp'):''}
+    ${d.dmg?st('Másodpercenkénti sebzés',dps):''}
+    ${d.dmg?st('Hatótáv',d.rng):''}
+    ${d.minr?st('Holttér',d.minr+' alatt'):''}
+    ${d.splash?st('Robbanási sugár',d.splash,1):''}
+    ${st('Tartály',d.cap)}
+    ${st('Fogyasztás',d.burn.toFixed(1)+'/mp',1)}
+    ${st('Önállóság','~'+auto+' mp menet')}
+    ${st('Gyártja',prod)}
+    ${extra}
+   </div></div></div>`;
+}
+function bldCard(k){
+ const d=B[k], roman='I II III IV'.split(' ');
+ let extra='';
+ if(k==='turret'){
+  extra='<table class="mx"><tr><th>Fokozat</th><th>Ár</th><th>Idő</th><th>Tűzerő</th><th>Hatótáv</th><th>Szerkezet</th></tr>'
+   +TUR.map((t,i)=>`<tr><td>${t.n}</td><td>${i?t.ore+' tit.':'alap'}</td><td>${i?t.t+' mp':'—'}</td>
+    <td>${t.dmg}</td><td>${t.rng}</td><td>${t.hp}</td></tr>`).join('')+'</table>';
+ }
+ const prod=Object.keys(U).filter(u=>U[u].from.includes(k)).map(u=>U[u].n);
+ return `<div class="cxcard">
+  <div class="cxpic">${cxIcon(k,1)}</div>
+  <div>
+   <div class="cxh"><b>${d.n}</b><span class="cxtag">${d.w}×${d.h}</span>
+    ${d.tech?`<span class="cxtag t">${roman[d.tech]}. szint</span>`:''}
+    ${d.onNode?'<span class="cxtag l">csak kürtőre</span>':''}</div>
+   <p class="cxd">${d.desc}</p>
+   <div class="cxs">
+    ${st('Ár',(d.ore||'—')+(d.ore?' titanit':''),1)}
+    ${st('Építési idő',d.bt+' mp')}
+    ${st('Szerkezet',d.hp)}
+    ${st('Alapterület',d.w+'×'+d.h+' mező')}
+    ${prod.length?st('Gyárt',prod.join(', ')):''}
+   </div>${extra}</div></div>`;
+}
+function cxBody(){
+ const roman='I II III IV'.split(' ');
+ if(cxCat==='units')  return Object.keys(U).filter(k=>U[k].cls!=='sup')
+   .sort((a,b)=>U[a].tech-U[b].tech||U[a].ore-U[b].ore).map(unitCard).join('');
+ if(cxCat==='supply') return Object.keys(U).filter(k=>U[k].cls==='sup').map(unitCard).join('');
+ if(cxCat==='bld')    return Object.keys(B).map(bldCard).join('');
+ if(cxCat==='res')    return `
+  <div class="cxsec">Titanit — a fizetőeszköz</div>
+  <p class="cxd">Minden építés és gyártás titanitba kerül. A mezők közepén kristálygóc áll, amely folyamatosan
+   újratermeli maga körül a kristályt: a meglévő csempék töltődnek, a szomszédos üres talajon új kristály nő.
+   Egy jól őrzött góc gyakorlatilag végtelen bevétel, de a termelés üteme véges — több góc kell a nagy hadsereghez.</p>
+  <div class="cxs">
+   ${st('Kollektor rakománya','160 egység')}${st('Fejtési idő','4,2 mp')}
+   ${st('Csempe maximuma','820')}${st('Újratermelés','~110 / 1,1 mp / góc')}
+  </div>
+  <div class="cxsec">Ritkaföldfém — véges és értékes</div>
+  <p class="cxd">A rózsaszín lelőhelyek rakományonként 2,6-szeres bevételt adnak, de soha nem nőnek vissza.
+   A kollektor magától mérlegel érték és távolság között, tehát amíg van a közelben, ezt fejti.
+   Ha egy ilyen mezőt elveszítesz, végleg elveszett.</p>
+  <div class="cxs">${st('Szorzó','2,6×',1)}${st('Újratermelődés','nincs')}</div>
+  <div class="cxsec">Deutérium — a hadmozdulat üzemanyaga</div>
+  <p class="cxd">Kevés, pontosan 2×2-es kürtő szóródik a pályán, ezek kimeríthetetlenek — ezért a térkép valódi
+   stratégiai pontjai. A deutériumkút pontosan egy kürtőre épül; kút-építési módban minden kürtő világít
+   a térképen, a szabadok türkizen, a foglaltak pirosan.</p>
+  <div class="cxs">
+   ${st('Kút hozama','14 / mp',1)}${st('Tartály tárolása','+900 / db')}
+   ${st('Alapkapacitás','600')}${st('Tartalék-utánpótlás','1,8 / mp')}
+  </div>
+  <div class="cxsec">Ellátólánc</div>
+  <p class="cxd">Minden siklónak saját tankja van, és menet közben fogyaszt. Ha kifogy, megáll a fronton,
+   és csak feleakkora sebzést visz be. Az ellátósikló ugyanabból az egy tankból hajt és tölt is,
+   így ami elfogy alóla útközben, azt már nem tudja odaadni — 60 egységet mindig megtart magának,
+   hogy hazajusson. Egy Leviatán mellé gyakorlatilag saját ellátósikló kell.</p>`;
+ if(cxCat==='tech')   return `
+  <div class="cxsec">Kutatási szintek</div>
+  <p class="cxd">A kutatólabor egyszerre egy szintet fejleszt. Minden szint új siklókat nyit meg;
+   az utolsó a Leviatán mozgó erődöt is.</p>
+  <table class="mx"><tr><th>Szint</th><th>Ár</th><th>Idő</th><th>Megnyílik</th></tr>
+  ${TECH.map((t,i)=>i===0?`<tr><td>I</td><td>alap</td><td>—</td><td>${
+    Object.keys(U).filter(k=>U[k].tech===0).map(k=>U[k].n).join(', ')}</td></tr>`
+   :`<tr><td>${roman[i]}</td><td>${t.ore} tit.</td><td>${t.t} mp</td><td>${
+    Object.keys(U).filter(k=>U[k].tech===i).map(k=>U[k].n).join(', ')||'—'}</td></tr>`).join('')}
+  </table>
+  <div class="cxsec">Rangok</div>
+  <p class="cxd">A fegyveres egységek igazolt találatokból lépnek elő. Az előléptetés azonnal
+   felgyógyítja őket a magasabb maximumra, ezért egy megmentett Ász többet ér három friss páncélosnál.</p>
+  <table class="mx"><tr><th>Rang</th><th>Találat</th><th>Tűzerő</th><th>Páncél</th></tr>
+  ${VET.map((v,i)=>`<tr><td style="color:${v.c}">${v.n}</td><td>${VKILL[i]}</td>
+   <td>${v.d.toFixed(2)}×</td><td>${v.h.toFixed(2)}×</td></tr>`).join('')}</table>`;
+ if(cxCat==='combat') return `
+  <div class="cxsec">Osztályok egymás ellen</div>
+  <p class="cxd">A sorok a támadó, az oszlopok a védekező osztályt jelölik. A számok sebzésszorzók:
+   a páncélos szétveri a tüzérséget, a tüzérség az épületeket, a romboló a páncélost, a könnyű sikló pedig
+   csak az ellátókra és a tüzérségre veszélyes.</p>
+  <table class="mx"><tr><th>támadó ↓ / védő →</th>${
+   ['tnk','td','art','lgt','sup','bld'].map(c=>`<th>${CLSN[c]||'épület'}</th>`).join('')}</tr>
+  ${['tnk','td','art','lgt','tur'].map(a=>`<tr><td>${a==='tur'?'plazmaágyú':CLSN[a]}</td>${
+   ['tnk','td','art','lgt','sup','bld'].map(dd=>{const v=MATCH[a][dd]||1;
+    return `<td class="${v>1.15?'g':v<.85?'b':'n'}">${v.toFixed(2)}×</td>`}).join('')}</tr>`).join('')}
+  </table>
+  <div class="cxsec">Területi rombolás</div>
+  <p class="cxd">A tüzérség ballisztikus pályán lő, és a becsapódás körzetében mindenkit sebez,
+   a középponttól távolodva csökkenő erővel. Ugyanez érvényes a Leviatán gravitonvetőjére.
+   A tüzérség viszont a saját holtterén belül tehetetlen: automatikusan hátrál, ha ráfut az ellenség.</p>
+  <div class="cxs">
+   ${st('Pulzár',U.pulsar.splash+' sugár · '+U.pulsar.minr+' holttér')}
+   ${st('Orkán',U.gale.splash+' sugár · '+U.gale.minr+' holttér')}
+   ${st('Leviatán',U.leviathan.splash+' sugár',1)}
+  </div>
+  <div class="cxsec">Üzemanyaghiány</div>
+  <p class="cxd">Nulla deutériummal egy sikló nem mozdul, és feleakkorát sebez. Az álló egység
+   fölött piros felkiáltójel jelenik meg. A gyalogság hiánya miatt nincs olcsó pótlás:
+   az ellátólánc összeomlása azonnal a front összeomlása.</p>`;
+ return `
+  <div class="cxsec">Kijelölés</div>
+  <div class="cxs">
+   ${st('Húzás balról jobbra','minden egység',1)}
+   ${st('Húzás jobbról balra','csak harcegység',1)}
+   ${st('Kattintás','egy egység / épület')}
+   ${st('Shift + kijelölés','hozzáad')}
+   ${st('Kattintás idegenre','adatlap megtekintése')}
+   ${st('Q','minden harcegység')}
+   ${st('E','minden konstruktor')}
+   ${st('Esc','kijelölés törlése')}
+  </div>
+  <div class="cxsec">Parancsok — jobb klikk</div>
+  <div class="cxs">
+   ${st('Üres talajra','odavonulás')}
+   ${st('Ellenségre','támadás')}
+   ${st('Konstruktor + alap','építés folytatása')}
+   ${st('Konstruktor + sérült épület','javítás')}
+   ${st('Konstruktor + törmelék','bontás')}
+   ${st('Kollektor + talaj','ott gyűjt',1)}
+   ${st('Kollektor + finomító','oda ürít',1)}
+   ${st('Ellátósikló + sikló','célzott feltöltés')}
+   ${st('Gyár + talaj','gyülekezőpont')}
+  </div>
+  <div class="cxsec">Kamera</div>
+  <div class="cxs">
+   ${st('Görgő','nagyítás a kurzor köré',1)}
+   ${st('WASD / nyilak','mozgatás')}
+   ${st('Képernyőszél','mozgatás')}
+   ${st('Minitérkép','ugrás')}
+   ${st('Space','szünet')}
+   ${st('F1','enciklopédia')}
+  </div>
+  <div class="cxsec">Építés</div>
+  <p class="cxd">Az alapot a konstruktor húzza fel: lerakás után a legközelebbi szabad konstruktor
+   magától elindul. Ha mind foglalt, az építkezés sorba áll, és amelyik felszabadul, felveszi
+   a hozzá legközelebbi gazdátlan alapot. Amíg nem áll rajta konstruktor, az építés nem halad.</p>`;
+}
+function drawCodex(cat,fromGame){
+ if(cat)cxCat=cat;
+ if(fromGame!==undefined)cxFromGame=fromGame;
+ const box=document.getElementById('setup');
+ box.classList.add('wide');
+ box.innerHTML=`
+  <h1>MŰSZAKI ADATTÁR</h1><h2>Enciklopédia</h2>
+  <div class="cx">
+   <div class="cxnav">${CXCAT.map(([k,n])=>
+     `<button data-c="${k}" class="${cxCat===k?'on':''}">${n}</button>`).join('')}</div>
+   <div class="cxbody">${cxBody()}</div>
+  </div>
+  <button class="pri" id="cxback">${cxFromGame?'Vissza a játékhoz':'Vissza a felállításhoz'}</button>`;
+ box.querySelectorAll('.cxnav button').forEach(b=>b.onclick=()=>drawCodex(b.dataset.c));
+ document.getElementById('cxback').onclick=()=>{
+  box.classList.remove('wide');
+  if(cxFromGame){document.getElementById('ov').style.display='none';cxFromGame=false}
+  else drawSetup()};
+}
+
 /* ───────── felállítási képernyő ───────── */
 const SETUP={n:2,grp:[1,2,3,4,5],lv:[0,1,1,1,1]};
 function drawSetup(){
@@ -1628,13 +1870,15 @@ function drawSetup(){
   <div class="summary">Ön: <b style="color:${FACT[0].c}">${FACT[0].n}</b>, „${G[SETUP.grp[0]-1]}" szövetség.<br>
    Szövetségesek: ${allies.length?allies.join(', '):'nincs'}<br>
    Ellenfelek: ${foes.length?foes.join(', '):'<span style="color:#ff3b5c">nincs — állíts be legalább egyet</span>'}</div>
-  <button class="pri" id="go">Bevetés indítása</button>`;
+  <button class="pri" id="go">Bevetés indítása</button>
+  <button class="pri" id="cx" style="background:transparent;color:var(--cyan);margin-left:8px">Enciklopédia</button>`;
  document.querySelectorAll('#setup .chip').forEach(b=>b.onclick=()=>{
   if(b.dataset.n){SETUP.n=+b.dataset.n;
    for(let i=0;i<5;i++)if(SETUP.grp[i]>SETUP.n)SETUP.grp[i]=SETUP.n}
   if(b.dataset.g){const [i,g]=b.dataset.g.split(':').map(Number);SETUP.grp[i]=g}
   if(b.dataset.l){const [i,l]=b.dataset.l.split(':').map(Number);SETUP.lv[i]=l}
   drawSetup()});
+ document.getElementById('cx').onclick=()=>drawCodex('units',false);
  document.getElementById('go').onclick=()=>{
   let foe=false;for(let i=1;i<SETUP.n;i++)if(SETUP.grp[i]!==SETUP.grp[0])foe=true;
   if(!foe){toast('Mindenki a te szövetségedben van — nem lenne ellenfél.',true);return}
